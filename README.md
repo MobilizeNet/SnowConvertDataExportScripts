@@ -2,6 +2,7 @@
 
 This repository provides useful scripts for performing DataExport tasks from: 
 
+- Teradata
 - Oracle
 - SQLServer
 
