@@ -1,0 +1,31 @@
+# Short description. (optional)
+description: "import database from ACME"
+
+# Data extraction tool. (mandatory)
+# This should be a command string with the name of the extractor tool and all the required parameters needed to connect to the Oracle database.
+# It can be a powershell, batch, or bash script.
+extractor: "./extract.sh $host $port $sid $user $password $filename $outfilename"
+
+# Directory where the queries will be saved. (optional)
+# This should be the path of the directory where you want the query files to be saved. If not defined, the default value is: "./workdir"
+exportDir: "./exportQueries"
+
+# Directory where the data dumps will be saved. (optional)
+# This should be the path of the directory where you want the data dump files to be saved. If not defined, the default value is: "./dumpdir"
+dumpDir: "./datadumps"
+
+# Number of processes running. (optional). 
+# This should be an integer number representing the amount of parallel processes you want the tool to run with. If not defined, the default value is: *2*
+processes: 2
+
+# Schema and query filter definitions. (mandatory)
+schemas: 
+  # List of unique schema names
+  SYS: ~
+  schema2: 
+    # List of schema and query filters. The schema filter is mandatory, the query filter can be empty.
+    - schemaFilter: "TABLE_NAME = 'TABLE2'"
+      queryFilter: "TABLE2.datetime > '2000-01-01'"
+    - schemaFilter: "TABLE_NAME = 'TABLE4'"
+      queryFilter: "TABLE4.CODE IN (1, 2, 3, 4)"  
+  schema4: ~
