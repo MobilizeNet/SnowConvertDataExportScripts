@@ -17,6 +17,8 @@ It's necessary the **Parameter.conf** file that contains five lines to set the p
 |`Third line`  |Delimiter between each column (*Comma* is recommended) |
 |`Fourth line`  |**(S/N)** '*S*' indicates if you want to run the generated PowerShell scripts to generate the CSV files, '*N*' if you just want to generate the PowerShell scripts|
 |`Fifth line`  |The path where the generated files will be stored (C:\ExtractionFiles)| 
+|`Sixth line`  |Database schema names selected separated by *comma* (dbo,...,n). If we want to extract all schemas, we keep this line empty|
+|`Seventh line`  |Maximun number of rows per file, if the table exceed this number of rows, it will create the extraction in separated csv files|
 
 > **Notes**: The path must be created before running the Extraction Script.
 
@@ -43,18 +45,20 @@ These scripts will be used for the extraction of the data of one table individua
 
 ## Generated CSV files for each table
 
-Once you run each extraction script, it will create the CSV file that will store the data of the respective table.  The format of each script is "**SchemaName**_**TableName**.csv"
+Once you run each extraction script, it will create the CSV file that will store the data of the respective table.  The format of each csv file is "**SchemaName**_**TableName**.csv"
+
+If the table exceed the maximun number of rows defined before, it will create the extraction in separated csv files. The format of each csv file is "**SchemaName_TableName_file#**.csv"
 
 ## ScriptLog.csv
 
 This file will keep the tracking of each extraction, the information will be stored like this.
 
-|Database Name|Schema Name|Table Name|Duration|
-|--|--|--|--|
+|Database Name|Schema Name|Table Name|Duration|File|
+|--|--|--|--|--|
 
 ## ErrorLog.csv
 
 This file will keep the tracking of each exception caught in the extraction; the information of the errors will be stored like this.
 
-|Database Name|Schema Name|Table Name|Error Message|
-|--|--|--|--|
+|Database Name|Schema Name|Table Name|Error Message|File|
+|--|--|--|--|--|
