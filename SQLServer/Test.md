@@ -1,4 +1,3 @@
-
 # Test Plan Exporting Microsoft SQL Server Tables to CSV files using Windows PowerShell
 
 **5/25/2021**
@@ -14,7 +13,7 @@ We installed a local MS SQL Server 2019 Database and SQL Server Management Studi
 Also, we used another database that uses the MS SQL Server 2012 version with 350 tables placed in 2 schemas, a couple of them with more than a million rows and we ensured the grants needed to access this database with Windows Authentication.
 
 Then, we started with the creation of the path that will store the generated files. In this case, we created the folder ExportFiles in the C drive.
-![enter image description here](https://i.ibb.co/j8dnStw/img1.png)
+![enter image description here](/img/img1.png)
 
 
 ##  Beginning with the test
