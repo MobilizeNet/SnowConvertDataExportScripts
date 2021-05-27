@@ -4,7 +4,7 @@ description: "import database from ACME"
 # Data extraction tool. (mandatory)
 # This should be a command string with the name of the extractor tool and all the required parameters needed to connect to the Oracle database.
 # It can be a powershell, batch, or bash script.
-extractor: "./extract.sh $host $port $sid $user $password $filename $outfilename"
+extractor: "./extract.sh $host $port $sid $servicename $user $password $filename $outfilename"
 
 # Directory where the queries will be saved. (optional)
 # This should be the path of the directory where you want the query files to be saved. If not defined, the default value is: "./workdir"

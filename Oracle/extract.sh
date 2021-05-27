@@ -10,17 +10,19 @@
 # This script receives Oracle connection parameters as host, port, SID, user, password, SQL query script filename, and a CSV output filename.
 # A connection to the Oracle database is created using SQL*Plus. Some preprocessing is done to the SQL query script file by adding some information required by the SQL*Plus tool.
 # The modified SQL query script is run against that DB and the data resultset is stored in the CSV output file.
+# This is a free tool, so please feel free to use it or modify it at your convenience. 
 
 oracleHost=$1
 oraclePort=$2
 oracleSid=$3
-oracleUser=$4
-oraclePassword=$5
-oracleScriptFilename=$6
-oracleOutfilename=$7
+oracleServiceName=$4
+oracleUser=$5
+oraclePassword=$6
+oracleScriptFilename=$7
+oracleOutfilename=$8
 
 base=$(dirname "$0")
-subdir="/datadumps"
+subdir="/dataDumps"
 newFilePath=$base$subdir
 
 mkdir -p $newFilePath
@@ -30,10 +32,41 @@ newFileName="${filename%.*}.sqlplus.sql"
 
 fullPath="$newFilePath/$newFileName"
 
-query=`cat $oracleScriptFilename`
-printf "set colsep \",\"\nset headsep off\nSET SERVEROUTPUT ON\nset termout off\nset trimout on\nset pagesize 0\nset trimspool on\nset newpage NONE\nset feedback off\nspool $oracleOutfilename\n\n$query \nspool off \nexit\n/" > $fullPath
+isSqlplusGreaterThan=false
+sqlplusVersion=$(sqlplus -V)
+FWK_REGEX=".Version ([0-9]+)\.([0-9]+)."
 
-sqlplus -S $oracleUser/$oraclePassword@$oracleHost:$oraclePort/$oracleSid "@$$fullPath"
+if [[ $(echo $sqlplusVersion) =~ $FWK_REGEX ]]
+then
+    if [[ ( ${BASH_REMATCH[1]} -gt 12 ) || ( ${BASH_REMATCH[1]} -eq 12 && ${BASH_REMATCH[2]} -ge 2 ) ]]
+    then
+        isSqlplusGreaterThan=true
+    fi
+fi
+
+query=`cat $oracleScriptFilename`
+if [[ $isSqlplusGreaterThan = true ]]
+then
+    printf "set arraysize 1000 \nset rowprefetch 1000\nset termout off\nspool \"$oracleOutfilename\" \n\n$query \nspool off \nexit\n/"  > $fullPath
+
+    if [ $oracleSid != "null" ]
+    then
+        sqlplus -S -M "CSV ON" $oracleUser/$oraclePassword@$oracleHost:$oraclePort:$oracleSid "@$fullPath"
+    elif [ $oracleServiceName != "null" ]
+    then 
+        sqlplus -S -M "CSV ON" $oracleUser/$oraclePassword@$oracleHost:$oraclePort/$oracleServiceName "@$fullPath"
+    fi
+else
+    printf "set wrap off\nset linesize 32767\nset colsep \",\"\nset headsep off\nSET SERVEROUTPUT ON\nset termout off\nset trimout on\nset pagesize 0\nset trimspool on\nset newpage NONE\nset feedback off\nspool $oracleOutfilename\n\n$query \nspool off \nexit\n/" > $fullPath
+
+    if [ $oracleSid != "null" ]
+    then
+        sqlplus -S $oracleUser/$oraclePassword@$oracleHost:$oraclePort:$oracleSid "@$fullPath"
+    elif [ $oracleServiceName != "null" ]
+    then 
+        sqlplus -S $oracleUser/$oraclePassword@$oracleHost:$oraclePort/$oracleServiceName "@$fullPath"
+    fi
+fi
 
 rm $fullPath
 
