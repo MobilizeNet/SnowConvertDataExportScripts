@@ -19,7 +19,7 @@ public class App {
         System.out.println("Oracle Export Tool");
         System.out.println("=======================");
         System.out.println("This is a simple tool to dump tables to CSV files");
-        System.out.println("Usage: java -jar <jar file generated from compilation>.jar -host <host> -port <port> -sid <sid> -user <user> -password <password> [-configFile <path to exportconfig.yaml if omitted assumes the file is on working dir>]");
+        System.out.println("Usage: java -jar <jar file generated from compilation>.jar -host <host> -port <port> {-sid <sid> | -serviceName <serviceName>} -user <user> -password <password> [-configFile <path to exportconfig.yaml if omitted assumes the file is on working dir>]");
     }
 
     public static void main(String[] args) throws IOException {
@@ -38,63 +38,24 @@ public class App {
             System.exit(100);
         }
 
-        String host = "";
-        String port = "";
-        String sid = "";
-        String user = "";
-        String password = "";
-        String configFile = "";
-
-        for (int i = 0; i < args.length; i++) {
-            switch(args[i].toLowerCase()) {
-                case "-host":
-                    i++;
-                    host = args[i];
-
-                    break;
-                case "-port":
-                    i++;
-                    port = args[i];
-
-                    break;
-                case "-sid":
-                    i++;
-                    sid = args[i];
-
-                    break;
-                case "-user":
-                    i++;
-                    user = args[i];
-
-                    break;
-                case "-password":
-                    i++;
-                    password = args[i];
-
-                    break;
-                case "-configfile":
-                    i++;
-                    configFile = args[i];
-
-                    break;
-            }
-        }
-
-        Yaml yaml = new Yaml();
-        configFile = configFile.trim().isEmpty() ? "exportconfig.yaml" : configFile;
+        LinkedHashMap<String, String> argsProcessed = processArgs(args);
         
-        exportConfig.host = host;
-        exportConfig.port = port;
-        exportConfig.SID = sid;
-        exportConfig.user = user;
-        exportConfig.password = password;
+        exportConfig.host = argsProcessed.get("host");
+        exportConfig.port = argsProcessed.get("port");
+        exportConfig.SID = argsProcessed.get("sid") == null ? "" : argsProcessed.get("sid");
+        exportConfig.serviceName = argsProcessed.get("servicename") == null ? "" : argsProcessed.get("servicename");
+        exportConfig.user = argsProcessed.get("user");
+        exportConfig.password = argsProcessed.get("password");
         
+        String configFile = argsProcessed.get("configfile");
+
         final File initialFile = new File(configFile);
         
         if (!initialFile.exists()) {
             exit_no_configFound();
         }
 
+        Yaml yaml = new Yaml();
         final InputStream configStream = new FileInputStream(initialFile);
         Map<String, Object> config = yaml.load(configStream);
         
@@ -116,10 +77,59 @@ public class App {
                     SchemaImportInfo schemaConfigItem = new SchemaImportInfo(schemaName, schemaFilter, tableFilter);
                     exportConfig.Schemas.add(schemaConfigItem);
                 }
+            } else {
+                SchemaImportInfo schemaConfigItem = new SchemaImportInfo(schemaName, schemaFilter, tableFilter);
+                exportConfig.Schemas.add(schemaConfigItem);
             }
         }
 
         System.out.println("Config file loaded!");
+    }
+
+    private static LinkedHashMap<String, String> processArgs(String[] args) {
+        LinkedHashMap<String, String> argsProcessed= new LinkedHashMap<String, String>();
+
+        for (int i = 0; i < args.length; i++) {
+            switch(args[i].toLowerCase()) {
+                case "-host":
+                    i++;
+                    argsProcessed.put("host", args[i]);
+
+                    break;
+                case "-port":
+                    i++;
+                    argsProcessed.put("port", args[i]);
+
+                    break;
+                case "-sid":
+                    i++;
+                    argsProcessed.put("sid", args[i]);
+
+                    break;
+                case "-servicename":
+                    i++;
+                    argsProcessed.put("servicename", args[i]);
+                    
+                    break;
+                case "-user":
+                    i++;
+                    argsProcessed.put("user", args[i]);
+
+                    break;
+                case "-password":
+                    i++;
+                    argsProcessed.put("password", args[i]);
+
+                    break;
+                case "-configfile":
+                    i++;
+                    argsProcessed.put("configfile", args[i].trim().isEmpty() ? "exportconfig.yaml" : args[i]);
+
+                    break;
+            }
+        }
+
+        return argsProcessed;
     }
 
     private static void checkConfigInfo(ExportInfo exportConfig, Map<String, Object> config) throws IOException {

@@ -91,4 +91,69 @@ You can use the following command as an example.
 
 `java -jar .\target\oracle-data-export-tool.jar -host localhost -port 1521 -sid orcl -user user1 -password u$3R.ONE -configFile .\exportconfig.yaml`
 
-**Note:** This tool is under constant improvement. For further information, you can contact <DataEngineeringTeam@mobilize.net>
+
+## Expected Outputs
+
+After the execution of the tool you should expect two folders to be created (one for the exported queries and one for the data dumps) with the names specified in the YAML configuration file. 
+
+### Exported queries folder
+
+Inside the exported queries folder you should see SQL files containing one simple SELECT query for each of the files. Also, you should see a log file named *queryproducer.log*. If there are some columns with not yet supported datatypes, you should see a warning message with the name of that column. 
+
+### Data Dumps
+
+Inside the data dumps folder you should see CSV files, one for each of the SQL files in the exported queries folder. Also, you should see a log file named *queryconsumer.log*. If there were some issues with the execution of the extractor tool and the exit code resulted in something different that 0, then you should see a warning message in the log file.
+
+
+## YAML Configuration File - Example
+
+Here you can find an example of how the YAML configuration file should look like. 
+
+```yml
+# Short description. (optional)
+description: "Testing the Oracle Extraction Tool"
+
+# Data extraction tool. (mandatory)
+# This should be a command string with the name of the extractor tool and all the required parameters needed to connect to the Oracle database.
+# It can be a powershell, batch, or bash script.
+extractor: "./extract.sh $host $port $sid $servicename $user $password $filename $outfilename"
+
+# Directory where the queries will be saved. (optional)
+# This should be the path of the directory where you want the query files to be saved. If not defined, the default value is: "./workdir"
+exportDir: "./exportQueries"
+
+# Directory where the data dumps will be saved. (optional)
+# This should be the path of the directory where you want the data dump files to be saved. If not defined, the default value is: "./dumpdir"
+dumpDir: "./dataDumps"
+
+# Number of processes running. (optional). 
+# This should be an integer number representing the amount of parallel processes you want the tool to run with. If not defined, the default value is: *2*
+processes: 4
+
+# Schema and query filter definitions. (mandatory)
+schemas: 
+  # List of unique schema names
+  sh: 
+    - schemaFilter: "TABLE_NAME = 'COUNTRIES'"
+    - schemaFilter: "TABLE_NAME = 'CUSTOMERS'"
+    - schemaFilter: "TABLE_NAME = 'PROMOTIONS'"
+    - schemaFilter: "TABLE_NAME = 'PRODUCTS'"
+    - schemaFilter: "TABLE_NAME = 'SUPPLEMENTARY_DEMOGRAPHICS'"
+    - schemaFilter: "TABLE_NAME = 'TIMES'"
+  hr: 
+    - schemaFilter: "TABLE_NAME = 'EMPLOYEES'"
+    - queryFilter: "EMPLOYEES.HIRE_DATE < '2020-01-01'"
+  oe: ~ # A '~' character is used when we want to retrieve all the tables from this schema
+  schemaX:
+    - schemaFilter: "TABLE_NAME = 'ORDERS'"
+      queryFilter: "ORDERS.ORDER_DATE > TO_DATE('2017-10-15', 'YYYY-MM-DD')"
+    - schemaFilter: "COLUMN_NAME LIKE 'ORDER_%'"
+      queryFilter: ""
+  schemaY:
+    - schemaFilter: "TABLE_NAME = 'COUNTRIES'"
+      queryFilter: "COUNTRIES.CODE IN ('US', 'ES', 'DE')"
+```
+
+___
+
+**NOTE:** This tool is under constant improvement. For further information, you can contact <DataEngineeringTeam@mobilize.net>

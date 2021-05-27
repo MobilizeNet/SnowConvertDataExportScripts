@@ -1,14 +1,15 @@
 package mobilize.snowconvert.oracle_export;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,47 +25,58 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class QueryProducer {
     public static String EXIT_CODE = "@@@exit!";
     private int workers;
     ExportInfo config;
-    Logger logger;
+    Logger queryProducerLogger;
     private int connected_workers = 0;
-    private int extracted_queries = 0;
-    private Object progress_lock = new Object();
+    private static volatile int extracted_queries = 0;
+    private static final Object progress_lock = new Object();
     private BlockingQueue<String> pendingQueriesToExtractData = new LinkedBlockingQueue<String>();
-    private int oracleMajorVersion;
-    private int oracleMinorVersion;
+    private int sqlplusMajorVersion = 0;
+    private int sqlplusMinorVersion = 0;
 
     public QueryProducer(ExportInfo exportConfig) {
         this.config = exportConfig;
         this.workers = this.config.procceses;
-        this.logger = Logger.getLogger("QueryProducer");
+        this.queryProducerLogger = Logger.getLogger(this.getClass().getName());
 
         FileHandler fh;
 
         try {
             fh = new FileHandler(Paths.get(exportConfig.workDir.toString(), "queryproducer.log").toString());
-            
+
             SimpleFormatter formatter = new SimpleFormatter();
-            
+
             fh.setFormatter(formatter);
-            logger.addHandler(fh);
-            logger.setUseParentHandlers(false);
+            queryProducerLogger.addHandler(fh);
+            queryProducerLogger.setUseParentHandlers(false);
         } catch (SecurityException | IOException e) {
             System.out.println("Error setting up logging");
         }
     }
 
     public void produce() {
-        String server = "@" + this.config.host + ":" + this.config.port + ":" + this.config.SID;
-        
+        checkAndSetSqlplusVersion(); // Let's set this from the very beginning
+
+        String server = "";
+
+        if (!this.config.SID.trim().isEmpty()) {
+            server = "@" + this.config.host + ":" + this.config.port + ":" + this.config.SID;
+        } else if (!this.config.serviceName.trim().isEmpty()) {
+            server = "@" + this.config.host + ":" + this.config.port + "/" + this.config.serviceName;
+        }
+
         System.out.println("Connecting to " + server);
-        System.out.println("Export queries at:" + this.config.workDir);
-        System.out.println("Data Dumps at:" + this.config.dumpDir);
+        System.out.println("Export queries at: " + this.config.workDir);
+        System.out.println("Data Dumps at: " + this.config.dumpDir);
 
         ExecutorService executorService = Executors.newFixedThreadPool(workers);
+
         BlockingQueue<SchemaImportInfo> queue = new ArrayBlockingQueue<SchemaImportInfo>(config.Schemas.size());
         queue.addAll(config.Schemas);
 
@@ -72,8 +84,8 @@ public class QueryProducer {
             final String workerName = "Worker" + i;
 
             Runnable task = () -> {
-                Connection conn = this.connect(workerName, this.config.host, config.port, config.SID, config.user,
-                        config.password);
+                Connection conn = this.connect(workerName, this.config.host, config.port, config.SID,
+                        config.serviceName, config.user, config.password);
                 this.connected_workers++;
 
                 status();
@@ -91,8 +103,6 @@ public class QueryProducer {
                             break;
                         }
                     }
-
-                    executorService.shutdown();
                 }
             };
 
@@ -100,39 +110,46 @@ public class QueryProducer {
         }
 
         QueryConsumer consumers = new QueryConsumer(config, this.pendingQueriesToExtractData);
-        consumers.consume();
+
         executorService.shutdown();
+        
+        while(!executorService.isTerminated()) { }
+        
         this.pendingQueriesToExtractData.add(EXIT_CODE);
-        consumers.shutdown();
+
+        consumers.consume();
+
+        System.out.println("\rFinished the execution!!!");
     }
 
     public void status() {
-        System.out.printf("\r\tConnected %d/%d, %d queries generated", this.connected_workers, workers,
-                this.extracted_queries);
+        System.out.printf("\r\tConnected %d/%d, %d queries generated", this.connected_workers, workers, QueryProducer.extracted_queries);
     }
 
-    private Connection connect(String workerName, String host, String port, String SID, String user, String password) {
+    private Connection connect(String workerName, String host, String port, String SID, String serviceName, String user, String password) {
         // Oracle SID = orcl , find yours in tnsname.ora
         try {
-            String server = "@" + host + ":" + port + ":" + SID;
-            
-            logger.info(workerName + ": connecting to " + server);
-            
+            String server = "";
+
+            if (!SID.trim().isEmpty()) {
+                server = "@" + host + ":" + port + ":" + SID;
+            } else if (!serviceName.trim().isEmpty()) {
+                server = "@" + host + ":" + port + "/" + serviceName;
+            }
+
+            queryProducerLogger.info(workerName + ": connecting to " + server);
+
             Connection conn = DriverManager.getConnection("jdbc:oracle:thin:" + server, user, password);
 
             if (conn != null) {
-                logger.info(workerName + ": Connected to the database!");
-
-                DatabaseMetaData meta = conn.getMetaData();
-                oracleMajorVersion = meta.getDatabaseMajorVersion();
-                oracleMinorVersion = meta.getDatabaseMinorVersion();
+                queryProducerLogger.info(workerName + ": Connected to the database!");
 
                 return conn;
             } else {
-                logger.info(workerName + ":Failed to make connection!");
+                queryProducerLogger.info(workerName + ": Failed to make connection!");
             }
         } catch (SQLException e) {
-            logger.severe(String.format(": SQL State: %s\n%s", e.getSQLState(), e.getMessage()));
+            queryProducerLogger.severe(String.format(": SQL State: %s\n%s", e.getSQLState(), e.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -157,7 +174,7 @@ public class QueryProducer {
             String lastTable = "";
             String lastOwner = "";
             List<TableInfo> columns = new ArrayList<TableInfo>();
-            
+
             while (rs.next()) {
                 TableInfo tableInfo = new TableInfo();
                 String owner = rs.getString("OWNER");
@@ -167,7 +184,7 @@ public class QueryProducer {
                 tableInfo.DataLength = rs.getInt("DATA_LENGTH");
                 tableInfo.DataPrecision = rs.getInt("DATA_PRECISION");
                 tableInfo.DataScale = rs.getInt("DATA_SCALE");
-                
+
                 if (!lastTable.equals(tableInfo.TableName)) {
                     if (columns.size() > 0) // Do we have any columns
                     {
@@ -192,32 +209,25 @@ public class QueryProducer {
     }
 
     private void generateDataQuery(SchemaImportInfo info, String lastOwner, String lastTable, List<TableInfo> columns) {
+        Boolean isSqlPlusGreaterThan = (sqlplusMajorVersion == 12 && sqlplusMinorVersion >= 2) || (sqlplusMajorVersion > 12);
         StringBuffer query = new StringBuffer("SELECT ");
-        int last = columns.size();
-        int current = 1;
+        List<String> columnsToAdd = new ArrayList<String>();
 
         for (TableInfo tableInfo : columns) {
             if (!this.checkIfSupportedType(tableInfo)) {
-                logger.info("Column " + tableInfo.ColumnName + " is of type " + tableInfo.DataType + " which is still not supported for extraction.");
+                queryProducerLogger.warning("Column " + tableInfo.TableName + "." + tableInfo.ColumnName + " is of type "
+                        + tableInfo.DataType + " which is still not supported for extraction.");
 
                 continue;
             }
-
-            String colname = tableInfo.ColumnName;
             
-            query.append(colname);
-            
-            if (current < last) {
-                if ((oracleMajorVersion == 12 && oracleMinorVersion > 2) || (oracleMajorVersion < 12)) {
-                    query.append(" || ");
-                } else {
-                    query.append(", ");
-                }
-            }
-            
-            current += 1;
+            String columnToAdd = !isSqlPlusGreaterThan && needsQuotationMarks(tableInfo) ? "'\"' || REPLACE(" + tableInfo.ColumnName + ", '\"', '\"\"' ) || '\"'" : tableInfo.ColumnName;
+            columnsToAdd.add(columnToAdd);
         }
 
+        String separator = isSqlPlusGreaterThan ? "," : " || ',' || ";
+
+        query.append(String.join(separator, columnsToAdd));
         query.append(" FROM ");
         query.append(lastTable);
 
@@ -232,7 +242,7 @@ public class QueryProducer {
                 getFileName(lastOwner, lastTable));
 
         try {
-            logger.info("Writing to file: " + targetFile.toString());
+            queryProducerLogger.info("Writing to file: " + targetFile.toString());
             pendingQueriesToExtractData.add(targetFile.toString());
             BufferedWriter writer = Files.newBufferedWriter(targetFile, StandardCharsets.UTF_8);
             writer.write(query.toString());
@@ -240,7 +250,7 @@ public class QueryProducer {
             writer.close();
 
             synchronized (progress_lock) {
-                this.extracted_queries++;
+                QueryProducer.extracted_queries++;
             }
 
             status();
@@ -252,7 +262,7 @@ public class QueryProducer {
     private boolean checkIfSupportedType(TableInfo tableInfo) {
         boolean isSupported = true;
 
-        switch(tableInfo.DataType.toUpperCase()) {
+        switch (tableInfo.DataType.toUpperCase()) {
             case "BLOB":
             case "NCLOB":
             case "CLOB":
@@ -268,6 +278,22 @@ public class QueryProducer {
         return isSupported;
     }
 
+    private boolean needsQuotationMarks(TableInfo tableInfo) {
+        boolean needsQuotes = false;
+
+        switch(tableInfo.DataType.toUpperCase()) {
+            case "CHAR":
+            case "NCHAR":
+            case "VARCHAR2":
+            case "VARCHAR":
+            case "NVARCHAR2":
+            case "DATE":
+                needsQuotes = true;
+        }
+
+        return needsQuotes;
+    }
+
     private String getFileName(String lastOwner, String lastTable) {
         int num = 1;
         String fileSuffix = UUID.randomUUID().toString().replace("-", "");
@@ -280,6 +306,34 @@ public class QueryProducer {
             file = new File(this.config.workDir.toString(), fileName);
         }
 
-        return fileName.toLowerCase();
+        return fileName.toLowerCase().replaceAll("[^\\w.-]", "_");
+    }
+
+    private void checkAndSetSqlplusVersion() {
+        Process process;
+
+        try {
+            String command = "sqlplus -V";
+            String output = "";
+
+            process = Runtime.getRuntime().exec(command);
+
+            BufferedReader b = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            String r;
+
+            while ((r = b.readLine()) != null) {
+                output += r;
+            }
+
+            Pattern p = Pattern.compile(".*Version\\s+(\\d+)\\.(\\d+).*");
+            Matcher m = p.matcher(output);
+
+            if (m.find()) {
+                sqlplusMajorVersion = Integer.parseInt(m.group(1));
+                sqlplusMinorVersion = Integer.parseInt(m.group(2));
+            }
+        } catch (IOException ie) {
+            queryProducerLogger.severe("Error in command. " + ie.getMessage());
+        }
     }
 }

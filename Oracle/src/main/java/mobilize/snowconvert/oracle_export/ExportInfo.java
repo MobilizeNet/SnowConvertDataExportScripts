@@ -6,6 +6,7 @@ import java.util.List;
 
 public class ExportInfo {
     public String SID = null;
+    public String serviceName;
     public String host;
     public String port;
     public String user;
