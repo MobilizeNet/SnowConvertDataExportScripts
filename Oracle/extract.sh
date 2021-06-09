@@ -47,8 +47,7 @@ fi
 query=`cat $oracleScriptFilename`
 if [[ $isSqlplusGreaterThan = true ]]
 then
-    printf "set arraysize 1000 \nset rowprefetch 1000\nset termout off\nspool \"$oracleOutfilename\" \n\n$query \nspool off \nexit\n/"  > $fullPath
-
+    printf "set wrap off\nset linesize 32767\nset arraysize 1000 \nset termout off\nset rowprefetch 1000\nspool \"$oracleOutfilename\" \n\n$query \nspool off \nexit\n/"  > $fullPath
     if [ $oracleSid != "null" ]
     then
         sqlplus -S -M "CSV ON" $oracleUser/$oraclePassword@$oracleHost:$oraclePort:$oracleSid "@$fullPath"
@@ -57,7 +56,7 @@ then
         sqlplus -S -M "CSV ON" $oracleUser/$oraclePassword@$oracleHost:$oraclePort/$oracleServiceName "@$fullPath"
     fi
 else
-    printf "set wrap off\nset linesize 32767\nset colsep \",\"\nset headsep off\nSET SERVEROUTPUT ON\nset termout off\nset trimout on\nset pagesize 0\nset trimspool on\nset newpage NONE\nset feedback off\nspool $oracleOutfilename\n\n$query \nspool off \nexit\n/" > $fullPath
+    printf "set wrap off\nset linesize 32767\nset colsep \",\"\nset headsep off\nSET SERVEROUTPUT ON\nset termout off\nset trimout on\nset pagesize 0\nset trimspool on\nset newpage NONE\nset feedback off\nset arraysize 1000 \nset timing off\nset heading on\nspool \"$oracleOutfilename\"\n\n$query \nspool off \nexit\n/" > $fullPath
 
     if [ $oracleSid != "null" ]
     then

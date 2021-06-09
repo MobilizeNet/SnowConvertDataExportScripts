@@ -236,8 +236,6 @@ public class QueryProducer {
             query.append(info.TableFilter);
         }
 
-        query.append(";");
-
         Path targetFile = Paths.get(this.config.workDir.toAbsolutePath().normalize().toString(),
                 getFileName(lastOwner, lastTable));
 
@@ -255,7 +253,7 @@ public class QueryProducer {
 
             status();
         } catch (IOException iox) {
-            System.out.println("Could not write file " + targetFile);
+            queryProducerLogger.severe("Could not write to file " + targetFile);
         }
     }
 
@@ -325,12 +323,16 @@ public class QueryProducer {
                 output += r;
             }
 
-            Pattern p = Pattern.compile(".*Version\\s+(\\d+)\\.(\\d+).*");
-            Matcher m = p.matcher(output);
+            Pattern sqlplusFoundMatch = Pattern.compile(".*(\\bversion\\b?|\\brelease\\b?)\\s+(\\d+)\\.(\\d+).*");
+            Matcher m = sqlplusFoundMatch.matcher(output.toLowerCase());
 
             if (m.find()) {
-                sqlplusMajorVersion = Integer.parseInt(m.group(1));
-                sqlplusMinorVersion = Integer.parseInt(m.group(2));
+                sqlplusMajorVersion = Integer.parseInt(m.group(2));
+                sqlplusMinorVersion = Integer.parseInt(m.group(3));
+            } else {
+                // If SQL*Plus is not installed, we are assuming another tool will be used and the query would need not any modifications
+                sqlplusMajorVersion = 99;
+                sqlplusMinorVersion = 99;
             }
         } catch (IOException ie) {
             queryProducerLogger.severe("Error in command. " + ie.getMessage());

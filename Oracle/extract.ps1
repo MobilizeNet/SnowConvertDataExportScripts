@@ -39,9 +39,9 @@ if($sqlplusVersion -match "Version (\d+)\.(\d+).") {
 } 
 
 if ($isSqlplusGreaterThan) {
-    $prependText = "set wrap off`nset linesize 32767`nset arraysize 1000 `nset rowprefetch 1000`nset termout off`nset timing on`nspool `"$oracleOutfilename`""
+    $prependText = "set wrap off`nset linesize 32767`nset arraysize 1000 `nset termout off`nset timing off`nset feedback off`nset rowprefetch 1000`nspool `"$oracleOutfilename`""
 } else {
-    $prependText = "set wrap off`nset linesize 32767`nset colsep `",`"`nset headsep off`nSET SERVEROUTPUT ON`nset termout off`nset trimout on`nset pagesize 0`nset trimspool on`nset newpage NONE`nset feedback off`nspool `"$oracleOutfilename`"" 
+    $prependText = "set wrap off`nset linesize 32767`nset arraysize 1000 `nset termout off`nset timing off`nset feedback off`nset heading on`nset colsep `",`"`nset headsep off`nSET SERVEROUTPUT ON`nset trimout on`nset pagesize 0`nset trimspool on`nset newpage NONE`nspool `"$oracleOutfilename`"" 
 }
 
 New-Item -Path $newFilePath -Name $newFileName -ItemType File -Value $prependText -Force
