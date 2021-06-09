@@ -63,6 +63,12 @@ public class QueryProducer {
     public void produce() {
         checkAndSetSqlplusVersion(); // Let's set this from the very beginning
 
+        Boolean isSqlPlusLower = !((sqlplusMajorVersion == 12 && sqlplusMinorVersion >= 2) || (sqlplusMajorVersion > 12));
+
+        if (isSqlPlusLower) {
+            System.out.println("***\nWe have detected you have installed a version of SQL*Plus (" + sqlplusMajorVersion + "." + sqlplusMinorVersion + ") not supported or that can give some issues when retrieving the data dumps. Please make sure you have specified a compatible extractor tool like SQL*Plus (12.2 or higher) or OpenCSV in the config YAML file\n***");
+        }
+
         String server = "";
 
         if (!this.config.SID.trim().isEmpty()) {
@@ -209,7 +215,6 @@ public class QueryProducer {
     }
 
     private void generateDataQuery(SchemaImportInfo info, String lastOwner, String lastTable, List<TableInfo> columns) {
-        Boolean isSqlPlusGreaterThan = (sqlplusMajorVersion == 12 && sqlplusMinorVersion >= 2) || (sqlplusMajorVersion > 12);
         StringBuffer query = new StringBuffer("SELECT ");
         List<String> columnsToAdd = new ArrayList<String>();
 
@@ -221,11 +226,10 @@ public class QueryProducer {
                 continue;
             }
             
-            String columnToAdd = !isSqlPlusGreaterThan && needsQuotationMarks(tableInfo) ? "'\"' || REPLACE(" + tableInfo.ColumnName + ", '\"', '\"\"' ) || '\"'" : tableInfo.ColumnName;
-            columnsToAdd.add(columnToAdd);
+            columnsToAdd.add(tableInfo.ColumnName);
         }
 
-        String separator = isSqlPlusGreaterThan ? "," : " || ',' || ";
+        String separator = ",";
 
         query.append(String.join(separator, columnsToAdd));
         query.append(" FROM ");
@@ -274,22 +278,6 @@ public class QueryProducer {
         }
 
         return isSupported;
-    }
-
-    private boolean needsQuotationMarks(TableInfo tableInfo) {
-        boolean needsQuotes = false;
-
-        switch(tableInfo.DataType.toUpperCase()) {
-            case "CHAR":
-            case "NCHAR":
-            case "VARCHAR2":
-            case "VARCHAR":
-            case "NVARCHAR2":
-            case "DATE":
-                needsQuotes = true;
-        }
-
-        return needsQuotes;
     }
 
     private String getFileName(String lastOwner, String lastTable) {
