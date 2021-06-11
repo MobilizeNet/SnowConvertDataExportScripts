@@ -62,6 +62,8 @@ The following are some examples of how to define the *extractor* parameter in th
 * Shell script
 `.\extract.sh $host $port $sid $user $password $queryScriptFile $dataDumpFile`
 
+**Note**: During our testing we found some issues when using versions of SQL\*Plus lower than 12.2, so we don't recommend and strongly suggest to use a different tool as the extraction process like OpenCSV or a SQL\*Plus 12.2 and higher.
+
 ## Tool Building Process
 
 This tool has been written in Java and for building process Maven is being used. You can use any of the following commands, as a reference, to build the tool.

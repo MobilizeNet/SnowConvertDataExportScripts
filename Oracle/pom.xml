@@ -16,6 +16,9 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
+        <main.class>mobilize.snowconvert.oracle_export.App</main.class>
+        <git.repository>MobilizeNet/SnowConvertDataExportScripts</git.repository>
+	<project.scm.id>github</project.scm.id>
     </properties>
 
     <dependencies>
@@ -39,6 +42,7 @@
     </dependencies>
 
     <build>
+        <sourceDirectory>${project.basedir}/src</sourceDirectory>
         <pluginManagement>
             <!-- lock down plugins versions to avoid using Maven defaults (may be moved to parent pom) -->
             <plugins>
@@ -53,7 +57,7 @@
                         <archive>
                             <manifest>
                                 <addClasspath>true</addClasspath>
-                                <mainClass>mobilize.snowconvert.oracle_export.App</mainClass>
+                                <mainClass>${main.class}</mainClass>
                             </manifest>
                         </archive>
                     </configuration>
@@ -111,7 +115,7 @@
                     <configuration>
                         <archive>
                             <manifest>
-                                <mainClass>mobilize.snowconvert.oracle_export.App</mainClass>
+                                <mainClass>${main.class}</mainClass>
                             </manifest>
                         </archive>
                     </configuration>
@@ -121,8 +125,42 @@
                 <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <mainClass>${main.class}</mainClass>
+                        <layout>JAR</layout>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>repackage</id>
+                            <goals>
+                                <goal>repackage</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>3.0.0-M1</version>
+                    <configuration>
+                        <tagNameFormat>v@{project.version}</tagNameFormat>
+                        <goals>clean package spring-boot:repackage install deploy</goals>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>
     </build>
+
+    <scm>
+        <developerConnection>scm:git:https://github.com/${git.repository}.git</developerConnection>
+        <tag>v1.0</tag>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub</name>
+            <url>https://maven.pkg.github.com/${git.repository}</url>
+        </repository>
+    </distributionManagement>
 </project>
