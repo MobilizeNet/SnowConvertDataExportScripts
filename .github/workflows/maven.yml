@@ -17,8 +17,8 @@ jobs:
         with:
           java-version: '11'
           distribution: 'adopt'
-      - run: mvn --batch-mode --update-snapshots verify
-      - run: mkdir staging && cp target/*.jar staging
+      - run: cd Oracle && mvn --batch-mode --update-snapshots verify
+      - run: cd Oracle && mkdir staging && cp target/*.jar staging
       - uses: actions/upload-artifact@v2
         with:
           name: Package
