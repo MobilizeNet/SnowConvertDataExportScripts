@@ -43,6 +43,8 @@ Then, we started with the creation of the path that will store the generated fil
 
 41 PowerShell scripts for each table, the CreateScriptLog.log, the ScriptLog.csv, and 42 CSV files for the tables we extracted, but... 
 
-Why 42 and not 41? That's because there is a table, TransactionHistory, that has more than 100 000 rows (the limit of rows per file we specified in *Parameters.conf* seventh line) and it created the file0 and file1 for this table.
+Why 42 and not 41? 
+
+That's because there is a table, TransactionHistory, that has more than 100 000 rows (the limit of rows per file we specified in *Parameters.conf* seventh line) and it created the file0 and file1 for this table.
 
 ![enter image description here](/img/img7.png)
